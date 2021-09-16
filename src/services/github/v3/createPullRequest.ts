@@ -9,112 +9,112 @@ import { fetchExistingPullRequest } from '../v4/fetchExistingPullRequest';
 import { getGithubV3ErrorMessage } from './getGithubV3ErrorMessage';
 
 export interface PullRequestPayload {
-  owner: string;
-  repo: string;
-  title: string;
-  body: string;
-  head: string;
-  base: string;
-  [key: string]: unknown;
+    owner: string;
+    repo: string;
+    title: string;
+    body: string;
+    head: string;
+    base: string;
+    [key: string]: unknown;
 }
 
 export async function createPullRequest({
-  options,
-  prPayload,
+    options,
+    prPayload,
 }: {
-  options: ValidConfigOptions;
-  prPayload: PullRequestPayload;
+    options: ValidConfigOptions;
+    prPayload: PullRequestPayload;
 }) {
-  logger.info(
-    `Creating PR with title: "${prPayload.title}". ${prPayload.head} -> ${prPayload.base}`
-  );
+    logger.info(
+        `Creating PR with title: "${prPayload.title}". ${prPayload.head} -> ${prPayload.base}`
+    );
 
-  const { accessToken, dryRun, githubApiBaseUrlV3 } = options;
-  const spinner = ora(`Creating pull request`).start();
+    const { accessToken, dryRun, githubApiBaseUrlV3 } = options;
+    const spinner = ora(`Creating pull request`).start();
 
-  if (dryRun) {
-    spinner.succeed('Dry run: Creating pull request');
+    if (dryRun) {
+        spinner.succeed('Dry run: Creating pull request');
 
-    // output PR summary
-    consoleLog(chalk.bold('\nPull request summary:'));
-    consoleLog(`Branch: ${prPayload.head} -> ${prPayload.base}`);
-    consoleLog(`Title: ${prPayload.title}`);
-    consoleLog(`Body: ${prPayload.body}\n`);
+        // output PR summary
+        consoleLog(chalk.bold('\nPull request summary:'));
+        consoleLog(`Branch: ${prPayload.head} -> ${prPayload.base}`);
+        consoleLog(`Title: ${prPayload.title}`);
+        consoleLog(`Body: ${prPayload.body}\n`);
 
-    return { url: 'example_url', number: 1337 };
-  }
-
-  try {
-    const octokit = new Octokit({
-      auth: accessToken,
-      baseUrl: githubApiBaseUrlV3,
-      log: logger,
-    });
-
-    const res = await octokit.pulls.create(prPayload);
-
-    spinner.succeed();
-
-    return {
-      url: res.data.html_url,
-      number: res.data.number,
-    };
-  } catch (e) {
-    // retrieve url for existing
-    try {
-      const existingPR = await fetchExistingPullRequest({
-        options,
-        prPayload,
-      });
-
-      if (existingPR) {
-        spinner.succeed('Updating existing pull request');
-        return existingPR;
-      }
-    } catch (e) {
-      logger.info('Could not retrieve existing pull request', e);
-      // swallow error
+        return { url: 'example_url', number: 1337 };
     }
 
-    spinner.fail();
-    throw new HandledError(
-      `Could not create pull request: ${getGithubV3ErrorMessage(e)}`
-    );
-  }
+    try {
+        const octokit = new Octokit({
+            auth: accessToken,
+            baseUrl: githubApiBaseUrlV3,
+            log: logger,
+        });
+
+        const res = await octokit.pulls.create(prPayload);
+
+        spinner.succeed();
+
+        return {
+            url: res.data.html_url,
+            number: res.data.number,
+        };
+    } catch (e: any) {
+        // retrieve url for existing
+        try {
+            const existingPR = await fetchExistingPullRequest({
+                options,
+                prPayload,
+            });
+
+            if (existingPR) {
+                spinner.succeed('Updating existing pull request');
+                return existingPR;
+            }
+        } catch (e: any) {
+            logger.info('Could not retrieve existing pull request', e);
+            // swallow error
+        }
+
+        spinner.fail();
+        throw new HandledError(
+            `Could not create pull request: ${getGithubV3ErrorMessage(e)}`
+        );
+    }
 }
 
 export function getBody({
-  options,
-  commits,
-  targetBranch,
+    options,
+    commits,
+    targetBranch,
 }: {
-  options: ValidConfigOptions;
-  commits: Commit[];
-  targetBranch: string;
+    options: ValidConfigOptions;
+    commits: Commit[];
+    targetBranch: string;
 }) {
-  const commitMessages = commits
-    .map((commit) => ` - ${commit.formattedMessage}`)
-    .join('\n');
-  const bodySuffix = options.prDescription
-    ? `\n\n${options.prDescription}`
-    : '';
-  return `Backports the following commits to ${targetBranch}:\n${commitMessages}${bodySuffix}`;
+    const commitMessages = commits
+        .map((commit) => ` - ${commit.formattedMessage}`)
+        .join('\n');
+    const bodySuffix = options.prDescription
+        ? `\n\n${options.prDescription}`
+        : '';
+    return `Backports the following commits to ${targetBranch}:\n${commitMessages}${bodySuffix}`;
 }
 
 export function getTitle({
-  options,
-  commits,
-  targetBranch,
+    options,
+    commits,
+    targetBranch,
 }: {
-  options: ValidConfigOptions;
-  commits: Commit[];
-  targetBranch: string;
+    options: ValidConfigOptions;
+    commits: Commit[];
+    targetBranch: string;
 }) {
-  const commitMessages = commits
-    .map((commit) => commit.formattedMessage)
-    .join(' | ');
-  return options.prTitle
-    .replace('{targetBranch}', targetBranch)
-    .replace('{commitMessages}', commitMessages)
-    .slice(0, 240);
+    const commitMessages = commits
+        .map((commit) => commit.formattedMessage)
+        .join(' | ');
+    return options.prTitle
+        .replace('{targetBranch}', targetBranch)
+        .replace('{commitMessages}', commitMessages)
+        .slice(0, 240);
 }
