@@ -55,7 +55,7 @@ export function cloneRepo(
         };
 
         const execProcess = execAsCallback(
-            `git clone ${getRemoteUrl(options, options.repoOwner)} --progress`,
+            `git clone ${getRemoteUrl(options, options.repoOwner)} --depth=10 --progress`,
             { cwd: getRepoOwnerPath(options), maxBuffer: 100 * 1024 * 1024 },
             cb
         );
@@ -160,10 +160,20 @@ export async function addRemote(
 }
 
 export async function cherrypick(options: ValidConfigOptions, commit: Commit) {
-    await exec(
-        `git fetch ${options.repoOwner} ${commit.sourceBranch}:${commit.sourceBranch} --force`,
-        { cwd: getRepoPath(options) }
-    );
+    try {
+        await exec(
+            `git fetch ${options.repoOwner} ${commit.sourceBranch}:${commit.sourceBranch} --force`,
+            { cwd: getRepoPath(options) }
+        );
+    } catch (e: any) {
+        // branch no longer exists
+        if (e.message.includes('couldn\'t find remote ref')) {
+            throw new HandledError(
+                `Fetch failed to find branch ${commit.sourceBranch} associated with this commit`
+            );
+        }
+        throw e;
+    }
     const mainline =
         options.mainline != undefined ? ` --mainline ${options.mainline}` : '';
 
